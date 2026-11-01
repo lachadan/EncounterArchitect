@@ -1,0 +1,13 @@
+[
+  {
+    "Name": "Example Training Dummy",
+    "Type": "Medium Construct, Unaligned",
+    "CR": "0",
+    "AC": 10,
+    "HP": 20,
+    "Initiative": 0,
+    "Stats": "Example Training Dummy\nMedium Construct, Unaligned\nAC 10; HP 20; Initiative +0\nSpeed 0 ft.\n\nTraits\nInert. This example creature cannot move or take actions."
+  }
+]
+
+
