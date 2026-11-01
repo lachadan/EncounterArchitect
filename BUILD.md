@@ -19,7 +19,10 @@ The optional extract.py script expects work/srd.pdf and writes
 work/Forge/monsters.json relative to its working directory. It is not used by
 the application at runtime. See README.txt for the full SRD attribution.
 
-No network calls are made by the app. Data is stored in the user's LocalAppData
+Network requests are limited to user-initiated URL loading and the optional
+embedded browser. Offline tracking and pasted-text parsing need no network.
+The embedded browser requires the separately installed Edge WebView2 Runtime;
+its loader is included in the published executable. Data is stored in the user's LocalAppData
 EncounterArchitect directory; exported encounters include their monster snapshots.
 
 

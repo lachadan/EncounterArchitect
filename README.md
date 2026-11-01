@@ -14,6 +14,35 @@ Extract the Windows release ZIP and run **EncounterArchitect.exe**. No separate
 
 ## Paste from D&D Beyond
 
+Version 1.3.0 supports **Import from D&D Beyond** with either a URL or pasted text.
+Paste an individual monster URL or a sourcebook link ending in an entry anchor
+(for example, `/sources/dnd/motm/bestiary#Alhoon`), then click **Load URL**.
+The app extracts one monster and shows editable fields before you save.
+
+For pages requiring sign-in, click **Sign in / open page**. Sign in yourself in
+the embedded browser, return to the requested entry, wait for it to load, and
+click **Read this monster**. If automatic detection fails, select the complete
+stat block's text inside that browser and click **Read this monster** again.
+Your browser's existing sign-in is not shared with
+this embedded browser. Its separate profile is stored locally in
+`%LOCALAPPDATA%\EncounterArchitect\BeyondBrowser` and may remember your sign-in.
+The app reads the selected stat block only when you press the button. It does
+not extract cookies or passwords, or upload imported monster content.
+
+The embedded browser requires the Microsoft Edge WebView2 Runtime. If it is
+missing, [download it from Microsoft](https://developer.microsoft.com/microsoft-edge/webview2/).
+The encounter tracker, direct URL loading, and pasted-text import still work
+without this optional runtime. URL loading and browser import need internet;
+the tracker and saved monster library work offline.
+
+Sourcebook ownership does not guarantee that D&D Beyond will allow its sign-in
+flow in an embedded browser. If sign-in, a verification screen, or page changes
+prevent import, use your regular browser and paste the complete stat block.
+Playable species/race traits cannot be imported as a monster with HP and AC.
+Chapters containing multiple monsters need a specific entry anchor.
+
+Pasted-text workflow:
+
 1. Open a monster you can access on D&D Beyond and copy its name and complete
    stat block, including the size/type line.
 2. Click **Paste from D&D Beyond** in the bestiary panel.
@@ -22,15 +51,17 @@ Extract the Windows release ZIP and run **EncounterArchitect.exe**. No separate
 4. Review and correct the name, type, AC, HP, initiative bonus, and CR.
 5. Click **Save to library**, then add the monster to your encounter.
 
-The complete copied text stays with the monster. Missing values are flagged;
+The complete imported text and its source URL (when available) stay with the
+monster. Missing values are flagged;
 initiative must be the bonus, not the passive initiative score. Older stat
 blocks may require entering this bonus manually. The app does not convert
 older monsters to the 2024 rules. Paste one monster at a time.
 
 Importing a matching name requires confirmation before replacing the library
 entry. Existing encounter creatures keep their own saved stats. Imported
-content stays on your computer; the app does not access your account or send
-clipboard content over the network.
+content stays on your computer; the paste importer does not send
+clipboard content over the network. The optional embedded browser contacts
+D&D Beyond and its sign-in providers as you browse and sign in.
 
 See [README.txt](README.txt) for the encounter controls and JSON import format.
 
@@ -76,7 +107,8 @@ Normal saves are in `%LOCALAPPDATA%\EncounterArchitect`.
 
 Git uses `main` and release tags. `v1.0.0` preserves the initial tracker;
 `v1.1.0` adds the paste importer; `v1.2.0` adds session history, character
-attribution, and a visible build version. See [CHANGELOG.md](CHANGELOG.md).
+attribution, and a visible build version; `v1.3.0` adds URL import and an optional
+sign-in browser. See [CHANGELOG.md](CHANGELOG.md).
 Saved encounters, custom monster libraries, and build outputs are excluded
 from version control. The SRD library and a clearly marked custom example
 are the only monster data committed to the source repository.

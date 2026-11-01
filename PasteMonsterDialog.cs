@@ -5,26 +5,34 @@ public sealed class PasteMonsterDialog : Form
     readonly TextBox source = new() { Multiline = true, AcceptsReturn = true, ScrollBars = ScrollBars.Both, Dock = DockStyle.Fill, Font = new Font("Consolas", 10) };
     readonly TextBox name = new(), type = new(), ac = new(), hp = new(), initiative = new(), cr = new();
     readonly TextBox warnings = new() { Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill };
-    readonly Button save;
+    readonly Button save=new();
+    readonly TextBox url=new(){Dock=DockStyle.Fill,PlaceholderText="https://www.dndbeyond.com/monsters/… or /sources/…#Monster"};
+    readonly CancellationTokenSource lifetime=new();
+    readonly string browserProfile;
+    string importedUrl="";
     public Monster? Monster { get; private set; }
 
-    public PasteMonsterDialog()
+    public PasteMonsterDialog(string? browserProfileDirectory=null)
     {
-        Text = "Paste from D&D Beyond";
-        Size = new Size(1040, 780); MinimumSize = new Size(860, 680);
+        browserProfile=browserProfileDirectory??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"EncounterArchitect","BeyondBrowser");
+        Text = $"Import from D&D Beyond · v{AppVersion.Current}";
+        Size = new Size(1100, 820); MinimumSize = new Size(960, 720);
         StartPosition = FormStartPosition.CenterParent; Font = new Font("Segoe UI", 10);
         BackColor = Color.FromArgb(30, 36, 47); ForeColor = Color.FromArgb(231, 235, 242);
-        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(16), ColumnCount = 1, RowCount = 4 };
+        var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(16), ColumnCount = 1, RowCount = 5 };
         layout.ColumnStyles.Add(new(SizeType.Percent, 100));
         layout.RowStyles.Add(new(SizeType.Absolute, 64)); layout.RowStyles.Add(new(SizeType.Absolute, 44));
+        layout.RowStyles.Add(new(SizeType.Absolute, 44));
         layout.RowStyles.Add(new(SizeType.Percent, 100)); layout.RowStyles.Add(new(SizeType.Absolute, 48));
-        layout.Controls.Add(new Label { Text = "Open a monster you can access on D&D Beyond. Copy its name and complete stat block, then paste below.\nPreview the detected values, correct anything needed, and save it to your local library.", Dock = DockStyle.Fill }, 0, 0);
+        layout.Controls.Add(new Label { Text = "Paste a monster URL and click Load URL. For content you own, use Sign in / open page, then Read this monster.\nOr paste a complete stat block below. Review the detected values before saving to your local library.", Dock = DockStyle.Fill }, 0, 0);
+        var urlRow=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=3,RowCount=1};urlRow.ColumnStyles.Add(new(SizeType.Percent,100));urlRow.ColumnStyles.Add(new(SizeType.Absolute,100));urlRow.ColumnStyles.Add(new(SizeType.Absolute,175));
+        Button load=null!,browse=null!;load=MakeButton("Load URL",async()=>await LoadUrl());browse=MakeButton("Sign in / open page",OpenBrowser);urlRow.Controls.Add(url,0,0);urlRow.Controls.Add(load,1,0);urlRow.Controls.Add(browse,2,0);layout.Controls.Add(urlRow,0,1);
         var toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
         toolbar.Controls.Add(MakeButton("Paste clipboard", () => {
             try { if (!Clipboard.ContainsText()) { warnings.Text = "The clipboard contains no text."; return; } source.Text = Clipboard.GetText(); Preview(); }
             catch (Exception e) { warnings.Text = "Couldn't read the clipboard. Use Ctrl+V in the text box instead.\r\n" + e.Message; }
         }));
-        toolbar.Controls.Add(MakeButton("Preview detected stats", Preview)); layout.Controls.Add(toolbar, 0, 1);
+        toolbar.Controls.Add(MakeButton("Preview detected stats", Preview)); layout.Controls.Add(toolbar, 0, 2);
         var content = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
         content.ColumnStyles.Add(new(SizeType.Percent, 57)); content.ColumnStyles.Add(new(SizeType.Percent, 43));
         content.Controls.Add(source, 0, 0);
@@ -36,12 +44,28 @@ public sealed class PasteMonsterDialog : Form
         fields.RowStyles.Add(new(SizeType.Absolute, 35)); fields.RowStyles.Add(new(SizeType.Percent, 100));
         fields.Controls.Add(new Label { Text = "Review before saving", AutoSize = true, ForeColor = Color.FromArgb(220, 179, 112) }, 0, 6); fields.SetColumnSpan(fields.GetControlFromPosition(0, 6)!, 2);
         fields.Controls.Add(warnings, 0, 7); fields.SetColumnSpan(warnings, 2);
-        content.Controls.Add(fields, 1, 0); layout.Controls.Add(content, 0, 2);
+        content.Controls.Add(fields, 1, 0); layout.Controls.Add(content, 0, 3);
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
         buttons.Controls.Add(MakeButton("Cancel", () => { DialogResult = DialogResult.Cancel; Close(); }));
-        save = MakeButton("Save to library", SaveMonster); save.Enabled = false; buttons.Controls.Add(save); layout.Controls.Add(buttons, 0, 3);
+        save = MakeButton("Save to library", SaveMonster); save.Enabled = false; buttons.Controls.Add(save); layout.Controls.Add(buttons, 0, 4);
         Controls.Add(layout); Theme(this);
-        warnings.Text = "Paste one complete stat block. No content is uploaded, and the app does not access your D&D Beyond account.";
+        warnings.Text = "Load a URL or paste one complete stat block. URL loading contacts D&D Beyond; imported monster data stays on your computer. The optional browser lets you sign in yourself.";
+        url.TextChanged+=(_,_)=>importedUrl="";
+        FormClosing+=(_,_)=>lifetime.Cancel();FormClosed+=(_,_)=>lifetime.Dispose();
+        async Task LoadUrl()
+        {
+            try{var uri=BeyondUrlImporter.ValidateUrl(url.Text);load.Enabled=false;browse.Enabled=false;url.Enabled=false;save.Enabled=false;warnings.Text="Loading page…";
+                var text=await BeyondUrlImporter.LoadAsync(uri,lifetime.Token);if(IsDisposed)return;source.Text=text;importedUrl=uri.AbsoluteUri;Preview();
+            }catch(OperationCanceledException){if(!IsDisposed)warnings.Text="The page request timed out or was cancelled. Try Sign in / open page, or paste the stat block.";}
+            catch(Exception e){if(!IsDisposed)warnings.Text=e.Message;}
+            finally{if(!IsDisposed){load.Enabled=true;browse.Enabled=true;url.Enabled=true;}}
+        }
+        void OpenBrowser()
+        {
+            try{var uri=BeyondUrlImporter.ValidateUrl(url.Text);using var browser=new BeyondBrowserDialog(uri,browserProfile);
+                if(browser.ShowDialog(this)==DialogResult.OK&&browser.StatText is {} text){source.Text=text;url.Text=browser.SourceUrl??uri.AbsoluteUri;importedUrl=url.Text;Preview();}
+            }catch(Exception e){warnings.Text=e.Message;}
+        }
         source.TextChanged += (_, _) => { save.Enabled = false; warnings.Text = "Text changed. Click Preview detected stats to refresh the fields before saving."; };
     }
 
@@ -65,7 +89,7 @@ public sealed class PasteMonsterDialog : Form
             warnings.Text = "Enter whole numbers: AC 0-1000, HP 1-1,000,000, initiative bonus -100 to +100. Use the bonus, not the passive initiative score."; return;
         }
         if (!System.Text.RegularExpressions.Regex.IsMatch(cr.Text.Trim(), @"^(?:\?|0|1/8|1/4|1/2|[1-9]|[12][0-9]|30)$")) { warnings.Text = "CR must be ?, 0, 1/8, 1/4, 1/2, or a whole number from 1 to 30."; return; }
-        Monster = new() { Name = name.Text.Trim(), Type = type.Text.Trim(), AC = armor, HP = health, Initiative = bonus, CR = cr.Text.Trim(), Stats = source.Text.Trim() };
+        Monster = new() { Name = name.Text.Trim(), Type = type.Text.Trim(), AC = armor, HP = health, Initiative = bonus, CR = cr.Text.Trim(), Stats = source.Text.Trim(), SourceUrl=importedUrl };
         DialogResult = DialogResult.OK; Close();
     }
 }

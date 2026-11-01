@@ -13,6 +13,7 @@ public class Monster
     public int HP { get; set; } = 1;
     public int Initiative { get; set; }
     public string Stats { get; set; } = "";
+    public string SourceUrl { get; set; } = "";
     public override string ToString() => $"{Name}  ·  CR {CR}";
 }
 public class Combatant
@@ -80,7 +81,7 @@ public class MainWindow : Form
         leftBody.Controls.Add(search,0,0);leftBody.Controls.Add(cr,0,1);leftBody.Controls.Add(library,0,2);
         var add=Flow();add.Controls.Add(quantity);add.Controls.Add(Button("+ Add to encounter",()=>AddSelected()));leftBody.Controls.Add(add,0,3);
         var custom=Flow();custom.Controls.Add(Button("Custom creature",Custom));custom.Controls.Add(Button("Import JSON",Import));leftBody.Controls.Add(custom,0,4);
-        var paste=Button("Paste from D&D Beyond",PasteFromBeyond);paste.Dock=DockStyle.Fill;leftBody.Controls.Add(paste,0,5);
+        var paste=Button("Import from D&D Beyond",PasteFromBeyond);paste.Dock=DockStyle.Fill;leftBody.Controls.Add(paste,0,5);
         cr.Items.Add("All challenge ratings");foreach(var v in monsters.Select(m=>m.CR).Distinct().OrderBy(CrValue))cr.Items.Add(v);cr.SelectedIndex=0;
         search.TextChanged+=(_,_)=>Filter();cr.SelectedIndexChanged+=(_,_)=>Filter();library.SelectedIndexChanged+=(_,_)=>ShowMonster(library.SelectedItem as Monster);library.DoubleClick+=(_,_)=>AddSelected();
         var middle=Pane("STAT BLOCK",out var midBody);root.Controls.Add(middle,1,0);midBody.RowCount=2;midBody.RowStyles.Add(new(SizeType.Absolute,65));midBody.RowStyles.Add(new(SizeType.Percent,100));midBody.Controls.Add(statTitle,0,0);midBody.Controls.Add(stats,0,1);
@@ -144,7 +145,7 @@ public class MainWindow : Form
     List<Monster> ReadMonsters(string path){var m=JsonSerializer.Deserialize<List<Monster>>(File.ReadAllText(path),json)??throw new Exception("Expected an array of monsters.");if(m.Any(x=>x==null||string.IsNullOrWhiteSpace(x.Name)||x.HP<1||x.HP>1000000||x.AC<0||x.Stats==null))throw new Exception("Each monster needs a name, positive HP, nonnegative AC, and Stats text.");return m;}
     void PasteFromBeyond()
     {
-        using var dialog=new PasteMonsterDialog();
+        using var dialog=new PasteMonsterDialog(Path.Combine(folder,"BeyondBrowser"));
         if(dialog.ShowDialog(this)!=DialogResult.OK||dialog.Monster is not {} m)return;
         if(monsters.Any(x=>x.Name.Equals(m.Name,StringComparison.OrdinalIgnoreCase))&&
             MessageBox.Show($"Replace '{m.Name}' in your library? Existing encounter creatures keep their current stats.","Monster already exists",MessageBoxButtons.OKCancel,MessageBoxIcon.Question)!=DialogResult.OK)return;
@@ -181,6 +182,7 @@ static class ModelTests
         if(e.Active!=a.Id||e.Round!=2)throw new Exception("Round wrap");
         ParserTests.Run();
         SessionHistoryTests.Run();
-        File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"self-test.txt"),"PASS: damage, temporary HP, healing, persistence, initiative, round wrap; parser: 330 SRD blocks and edge cases; session history: attribution, HP and temp changes, overkill, undo totals, new-session reset, no save leakage; version metadata.");
+        UrlImporterTests.Run();
+        File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"self-test.txt"),"PASS: damage, temporary HP, healing, persistence, initiative, round wrap; parser: 330 SRD blocks and edge cases; session history and undo; URL validation, HTML extraction, chapter anchors, ambiguous and non-monster pages; version metadata.");
     }
 }

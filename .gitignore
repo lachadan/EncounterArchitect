@@ -8,4 +8,7 @@ self-test.txt
 encounter*.json
 custom-monsters.json
 *.tmp
+url-check.txt
+BeyondBrowser/
+browser-check.txt
 

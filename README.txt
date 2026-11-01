@@ -1,8 +1,8 @@
-ENCOUNTER ARCHITECT 1.2
+ENCOUNTER ARCHITECT 1.3
 Offline monster lookup and encounter tracking for the D&D 2024 rules
 
 START
-Double-click EncounterArchitect.exe. No installer, account, internet connection,
+Double-click EncounterArchitect.exe. No installer, account for the tracker, internet connection for offline use,
 or separately installed .NET runtime is required. This build is for Windows
 10/11 on x64 computers. The executable can be moved to a folder of your choice.
 
@@ -76,8 +76,20 @@ See README.md in the source package for version history and build details.
 
 
 SESSION HISTORY AND VERSION
-The title and encounter heading show version 1.2.0. Select or type a Character
+The title and encounter heading show the installed version. Select or type a Character
 name, apply damage, and click Session history to review entries and damage
 totals. Undo marks affected entries as reversed. Healing, temporary HP changes,
 and manual HP adjustments are also logged. History is kept only in memory,
 spans encounter changes, and clears when the app exits. It is not saved.
+
+URL IMPORT (VERSION 1.3.0)
+Click Import from D&D Beyond, paste a monster URL, and click Load URL.
+For a sourcebook chapter, include the entry anchor, such as #Alhoon.
+If sign-in is required, use Sign in / open page. Sign in yourself, return to
+the entry, and click Read this monster. Review the stats before saving.
+The embedded browser requires Microsoft Edge WebView2 Runtime and keeps its
+own local sign-in profile. Direct URL requests do not use your browser cookies.
+If a page is blocked or unsupported, copy its stat block in your normal browser
+and use Paste clipboard. URLs for playable race traits are not monster blocks.
+URL import needs internet; existing tracking and saved monsters work offline.
+Dependency notices are included in the licenses folder.

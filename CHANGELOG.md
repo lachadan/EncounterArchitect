@@ -1,5 +1,15 @@
 # Changes
 
+## 1.3.0 — 2026-11-01
+
+- Load D&D Beyond monster URLs into the existing review/import dialog.
+- Select one sourcebook entry using its #anchor.
+- Add an optional WebView2 browser for user-controlled sign-in and stat reading.
+- Keep pasted-text import as a fallback for blocked or unsupported pages.
+- Store the source URL with imported monsters; preserve existing save compatibility.
+- Reject missing, ambiguous, or non-monster entries instead of guessing.
+- Validate URL hosts and redirects; limit request size and time.
+
 ## 1.2.0 — 2026-11-01
 
 - Display the build version in the main title, encounter heading, and About.
