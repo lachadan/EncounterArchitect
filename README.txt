@@ -1,4 +1,4 @@
-ENCOUNTER ARCHITECT 1.3
+ENCOUNTER ARCHITECT 1.3.1
 Offline monster lookup and encounter tracking for the D&D 2024 rules
 
 START
@@ -85,11 +85,20 @@ spans encounter changes, and clears when the app exits. It is not saved.
 URL IMPORT (VERSION 1.3.0)
 Click Import from D&D Beyond, paste a monster URL, and click Load URL.
 For a sourcebook chapter, include the entry anchor, such as #Alhoon.
-If sign-in is required, use Sign in / open page. Sign in yourself, return to
-the entry, and click Read this monster. Review the stats before saving.
+For Google sign-in or owned books, use Open normal browser and paste the stat
+block after signing in. Other sign-in methods can try Embedded browser, then
+return to the entry and click Read this monster. Review before saving.
 The embedded browser requires Microsoft Edge WebView2 Runtime and keeps its
 own local sign-in profile. Direct URL requests do not use your browser cookies.
 If a page is blocked or unsupported, copy its stat block in your normal browser
 and use Paste clipboard. URLs for playable race traits are not monster blocks.
 URL import needs internet; existing tracking and saved monsters work offline.
 Dependency notices are included in the licenses folder.
+
+SIGN-IN FIX (1.3.1)
+Google sign-in requires your normal browser. Use Open normal browser, sign in
+there, copy the complete monster stat block, then use Paste clipboard in the app.
+Your normal browser sign-in is not transferred to public URL requests.
+Owned sourcebook URLs such as #GreenAbishai are not public monster pages.
+The optional Embedded browser preserves separate popups for other providers and
+shows navigation errors, Reload, Back, and the current page address.

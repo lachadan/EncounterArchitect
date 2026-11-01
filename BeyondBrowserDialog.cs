@@ -9,6 +9,7 @@ public sealed class BeyondBrowserDialog : Form
 {
     readonly WebView2 browser=new(){Dock=DockStyle.Fill};
     readonly Label message=new(){Dock=DockStyle.Fill,AutoSize=false};
+    readonly Label address=new(){Dock=DockStyle.Bottom,Height=25,AutoEllipsis=true};
     readonly Button read=new(){Text="Read this monster",AutoSize=true,Enabled=false};
     readonly Uri requested;
     readonly string profile;
@@ -20,13 +21,16 @@ public sealed class BeyondBrowserDialog : Form
         requested=uri;profile=profileDirectory;Text=$"D&D Beyond browser · Encounter Architect v{AppVersion.Current}";
         Size=new Size(1150,800);MinimumSize=new Size(850,600);StartPosition=FormStartPosition.CenterParent;Font=new Font("Segoe UI",10);
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,Padding=new Padding(10)};
-        layout.ColumnStyles.Add(new(SizeType.Percent,100));layout.RowStyles.Add(new(SizeType.Absolute,70));layout.RowStyles.Add(new(SizeType.Percent,100));layout.RowStyles.Add(new(SizeType.Absolute,44));
-        message.Text="Sign in yourself if needed, then open the monster and click Read this monster.\nThis browser uses a separate local profile and may remember your sign-in. The app reads only the selected stat block.";
+        layout.ColumnStyles.Add(new(SizeType.Percent,100));layout.RowStyles.Add(new(SizeType.Absolute,105));layout.RowStyles.Add(new(SizeType.Percent,100));layout.RowStyles.Add(new(SizeType.Absolute,44));
+        message.Text="Google sign-in needs Open in default browser, followed by copy/paste import. Other sign-in methods may work here.\nThis browser has a separate local profile. If you can open the entry here, click Read this monster.";
         layout.Controls.Add(message,0,0);layout.Controls.Add(browser,0,1);
         var buttons=new FlowLayoutPanel{Dock=DockStyle.Fill};buttons.Controls.Add(read);
         var go=new Button{Text="Return to requested entry",AutoSize=true};go.Click+=(_,_)=>{if(browser.CoreWebView2!=null)browser.CoreWebView2.Navigate(requested.AbsoluteUri);};buttons.Controls.Add(go);
         var external=new Button{Text="Open in default browser",AutoSize=true};external.Click+=(_,_)=>Process.Start(new ProcessStartInfo(requested.AbsoluteUri){UseShellExecute=true});buttons.Controls.Add(external);
+        var reload=new Button{Text="Reload",AutoSize=true};reload.Click+=(_,_)=>browser.CoreWebView2?.Reload();buttons.Controls.Add(reload);
+        var back=new Button{Text="Back",AutoSize=true};back.Click+=(_,_)=>{if(browser.CanGoBack)browser.GoBack();};buttons.Controls.Add(back);
         layout.Controls.Add(buttons,0,2);Controls.Add(layout);Shown+=async(_,_)=>await Initialize();read.Click+=async(_,_)=>await ReadMonster();
+        Controls.Add(address);
         FormClosed+=(_,_)=>browser.Dispose();
     }
     async Task Initialize()
@@ -35,12 +39,16 @@ public sealed class BeyondBrowserDialog : Form
             var environment=await CoreWebView2Environment.CreateAsync(userDataFolder:profile);
             if(IsDisposed)return;await browser.EnsureCoreWebView2Async(environment);if(IsDisposed)return;
             browser.CoreWebView2.Settings.AreDevToolsEnabled=false;
-            browser.CoreWebView2.NewWindowRequested+=(_,e)=>{e.Handled=true;if(Uri.TryCreate(e.Uri,UriKind.Absolute,out var next)&&next.Scheme=="https")browser.CoreWebView2.Navigate(next.AbsoluteUri);};
-            browser.CoreWebView2.NavigationStarting+=(_,e)=>{if(Uri.TryCreate(e.Uri,UriKind.Absolute,out var next)&&next.Scheme!="https"&&next.Scheme!="about")e.Cancel=true;};
-            browser.CoreWebView2.NavigationCompleted+=(_,_)=>read.Enabled=true;
+            BrowserPopupHost.Attach(browser,environment,this,Report);
+            browser.CoreWebView2.SourceChanged+=(_,_)=>address.Text=browser.Source?.GetLeftPart(UriPartial.Path)??"";
+            browser.CoreWebView2.NavigationStarting+=(_,_)=>{read.Enabled=false;Report("Loading page… If sign-in opens another window, complete it there.");};
+            browser.CoreWebView2.NavigationCompleted+=(_,e)=>{read.Enabled=e.IsSuccess;
+                Report(e.IsSuccess?"Page loaded. Sign in if needed, return to the requested entry, then click Read this monster. If the page is blank, try Reload or Open in default browser.":$"Page failed to load ({e.WebErrorStatus}). Try Reload or Open in default browser, then paste the stat block.");};
+            browser.CoreWebView2.ProcessFailed+=(_,e)=>{read.Enabled=false;Report($"The browser stopped ({e.ProcessFailedKind}). Try Reload or Open in default browser.");};
             browser.CoreWebView2.Navigate(requested.AbsoluteUri);
         }catch(Exception e){if(!IsDisposed)message.Text="The embedded browser couldn't start. It requires Microsoft Edge WebView2 Runtime. You can still use URL loading or paste text from your normal browser.\n"+e.Message;}
     }
+    void Report(string text){if(!IsDisposed){if(message.Text==BrowserPopupHost.GoogleMessage&&!text.Contains("Google"))return;message.Text=text;}}
     async Task ReadMonster()
     {
         try{

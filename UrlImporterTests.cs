@@ -5,6 +5,8 @@ static class UrlImporterTests
     const string Block="<div class='mon-stat-block-2024'><div>Example Sentinel</div><div>Medium Construct, Unaligned</div><div><span>AC</span><span>17</span> <span>Initiative</span><span>+3 (13)</span></div><div>HP <span>40 (5d8 + 15)</span></div><div>CR 2 (XP 450)</div><h3>Actions</h3><p>Slam. <b>Melee Attack Roll:</b> +5. <span>Hit:</span> 8 damage.</p></div>";
     public static void Run()
     {
+        if(!BrowserPopupHost.IsGoogleSignIn("https://accounts.google.com/o/oauth2/auth")||BrowserPopupHost.IsGoogleSignIn("https://accounts.google.com.evil.test/login"))throw new Exception("Google browser routing");
+        if(!BrowserPopupHost.CanNavigate("about:blank")||!BrowserPopupHost.CanNavigate("https://accounts.example.com/login")||BrowserPopupHost.CanNavigate("file:///C:/test")||BrowserPopupHost.CanNavigate("javascript:alert(1)"))throw new Exception("Login popup navigation policy");
         var monster=BeyondUrlImporter.ValidateUrl("https://www.dndbeyond.com/monsters/123-example");
         var text=BeyondUrlImporter.ExtractHtml("<html><script>HP 99999</script>"+Block+"</html>",monster);
         var draft=StatBlockParser.Parse(text);

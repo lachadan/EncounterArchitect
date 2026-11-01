@@ -19,6 +19,7 @@ public static class BeyondUrlImporter
     public static async Task<string> LoadAsync(Uri uri,CancellationToken cancellation=default)
     {
         ValidateUrl(uri.AbsoluteUri);
+        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellation);deadline.CancelAfter(TimeSpan.FromSeconds(30));cancellation=deadline.Token;
         using var handler=new HttpClientHandler{AllowAutoRedirect=false,UseCookies=false,AutomaticDecompression=DecompressionMethods.All};
         using var client=new HttpClient(handler){Timeout=TimeSpan.FromSeconds(25)};
         client.DefaultRequestHeaders.UserAgent.ParseAdd("EncounterArchitect/"+AppVersion.Current);
@@ -29,10 +30,10 @@ public static class BeyondUrlImporter
             if((int)response.StatusCode is >=300 and <400&&response.Headers.Location is {} location)
             {
                 var next=new Uri(current,location);
-                try{ValidateUrl(next.AbsoluteUri);}catch(FormatException){throw new FormatException("D&D Beyond redirected to a store or sign-in page. Use Sign in / open page, then Read this monster after signing in.");}
+                try{ValidateUrl(next.AbsoluteUri);}catch(FormatException){throw new FormatException("This is not a public monster page: D&D Beyond redirected to its store or sign-in. For owned sourcebooks or Google sign-in, use Open normal browser, sign in there, copy the complete monster stat block, and return to Paste clipboard. Other sign-in methods can try Embedded browser.");}
                 current=next;continue;
             }
-            if(!response.IsSuccessStatusCode)throw new FormatException($"D&D Beyond returned HTTP {(int)response.StatusCode}. Use Sign in / open page, or copy the stat block and paste it below.");
+            if(!response.IsSuccessStatusCode)throw new FormatException($"D&D Beyond returned HTTP {(int)response.StatusCode}. Use Open normal browser, sign in if needed, and copy the complete stat block into Paste clipboard.");
             if(response.Content.Headers.ContentLength>8_000_000)throw new FormatException("This page is too large. Open it in the browser and read a single monster.");
             using var stream=await response.Content.ReadAsStreamAsync(cancellation);using var memory=new MemoryStream();var buffer=new byte[16384];int read;
             while((read=await stream.ReadAsync(buffer,cancellation))>0){if(memory.Length+read>8_000_000)throw new FormatException("This page is too large. Read a single monster in the browser instead.");memory.Write(buffer,0,read);}

@@ -14,13 +14,23 @@ Extract the Windows release ZIP and run **EncounterArchitect.exe**. No separate
 
 ## Paste from D&D Beyond
 
-Version 1.3.0 supports **Import from D&D Beyond** with either a URL or pasted text.
+**Import from D&D Beyond** supports either a URL or pasted text.
 Paste an individual monster URL or a sourcebook link ending in an entry anchor
 (for example, `/sources/dnd/motm/bestiary#Alhoon`), then click **Load URL**.
 The app extracts one monster and shows editable fields before you save.
 
-For pages requiring sign-in, click **Sign in / open page**. Sign in yourself in
-the embedded browser, return to the requested entry, wait for it to load, and
+For Google sign-in or owned sourcebooks, use **Open normal browser**, sign in
+there, open the entry, and copy its complete stat block. Return to the importer
+and click **Paste clipboard**. Google does not support OAuth sign-in in an
+embedded browser; version 1.3.1 detects that route and displays these instructions
+instead of attempting to load it.
+
+**Load URL** does not inherit sign-in from your normal browser. A link such as
+`/sources/dnd/motm/bestiary#GreenAbishai` is an owned-sourcebook entry, not a public
+monster page. Public URL loading can also be blocked by the website.
+
+For other sign-in methods, you can try the optional **Embedded browser**. Sign
+in yourself, return to the requested entry, wait for it to load, and
 click **Read this monster**. If automatic detection fails, select the complete
 stat block's text inside that browser and click **Read this monster** again.
 Your browser's existing sign-in is not shared with
@@ -45,7 +55,7 @@ Pasted-text workflow:
 
 1. Open a monster you can access on D&D Beyond and copy its name and complete
    stat block, including the size/type line.
-2. Click **Paste from D&D Beyond** in the bestiary panel.
+2. Click **Import from D&D Beyond** in the bestiary panel.
 3. Click **Paste clipboard**, or paste into the large text box and click
    **Preview detected stats**.
 4. Review and correct the name, type, AC, HP, initiative bonus, and CR.

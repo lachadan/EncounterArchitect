@@ -23,6 +23,6 @@ static class SessionHistoryTests
         if(new SessionHistory().Entries.Count!=0)throw new Exception("New session not empty");
         string save=JsonSerializer.Serialize(new Encounter{Creatures=new(){target}});
         if(save.Contains("Aria")||save.Contains("SessionEntry")||save.Contains("LogCount"))throw new Exception("Session log leaked to encounter save");
-        if(AppVersion.Current!="1.3.0")throw new Exception("Build version mismatch");
+        if(AppVersion.Current!="1.3.1")throw new Exception("Build version mismatch");
     }
 }

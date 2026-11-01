@@ -1,5 +1,14 @@
 # Changes
 
+## 1.3.1 — 2026-11-01
+
+- Detect Google sign-in and direct users to normal-browser copy/paste import.
+- Preserve real sign-in popup windows, their opener callbacks, and blank-page handoffs.
+- Add browser address display, navigation errors, Reload, and Back controls.
+- Clarify that owned-sourcebook links are not public URL imports.
+- Apply a 30-second deadline across redirects and response-body downloads.
+- Add a WebView2 integration test for real popup callbacks and popup closure.
+
 ## 1.3.0 — 2026-11-01
 
 - Load D&D Beyond monster URLs into the existing review/import dialog.
