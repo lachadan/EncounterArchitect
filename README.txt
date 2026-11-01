@@ -1,4 +1,4 @@
-ENCOUNTER ARCHITECT 1.1
+ENCOUNTER ARCHITECT 1.2
 Offline monster lookup and encounter tracking for the D&D 2024 rules
 
 START
@@ -74,3 +74,10 @@ fields, correct them, and save to your local library. Missing initiative bonuses
 must be entered manually. Imported content is stored only on your computer.
 See README.md in the source package for version history and build details.
 
+
+SESSION HISTORY AND VERSION
+The title and encounter heading show version 1.2.0. Select or type a Character
+name, apply damage, and click Session history to review entries and damage
+totals. Undo marks affected entries as reversed. Healing, temporary HP changes,
+and manual HP adjustments are also logged. History is kept only in memory,
+spans encounter changes, and clears when the app exits. It is not saved.

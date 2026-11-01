@@ -34,6 +34,26 @@ clipboard content over the network.
 
 See [README.txt](README.txt) for the encounter controls and JSON import format.
 
+## Session damage history
+
+The window title and encounter heading display the installed application version.
+Enter or select a **Character** beside the damage controls, then use **Damage**
+or **Heal** as usual. Names you type remain available for the current application
+session; encounter roster names are also suggested. A blank name is recorded as
+**Unspecified**.
+
+Click **Session history** to see the time, round, character, target, amount
+entered, HP and temporary HP before/after, and whether an entry was reversed.
+The window updates live while you continue using the encounter tracker.
+Damage totals distinguish damage entered from actual HP lost and temporary HP
+absorbed, so overkill is visible. Healing, temporary HP changes, restoring HP,
+and manual HP adjustments are also logged but do not count as damage totals.
+Undo marks affected events as reversed and removes them from totals.
+
+History spans encounter changes within the current application session, clears
+when the app exits, and is never written to encounter autosaves or exported
+files. Closing only the history window keeps the log until you exit the app.
+
 ## Build and check
 
 Install the .NET 10 SDK, then run:
@@ -55,7 +75,8 @@ Normal saves are in `%LOCALAPPDATA%\EncounterArchitect`.
 ## Version history
 
 Git uses `main` and release tags. `v1.0.0` preserves the initial tracker;
-`v1.1.0` adds the paste importer. See [CHANGELOG.md](CHANGELOG.md).
+`v1.1.0` adds the paste importer; `v1.2.0` adds session history, character
+attribution, and a visible build version. See [CHANGELOG.md](CHANGELOG.md).
 Saved encounters, custom monster libraries, and build outputs are excluded
 from version control. The SRD library and a clearly marked custom example
 are the only monster data committed to the source repository.

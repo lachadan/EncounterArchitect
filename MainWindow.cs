@@ -44,7 +44,10 @@ public class MainWindow : Form
     readonly JsonSerializerOptions json=new(){WriteIndented=true,PropertyNameCaseInsensitive=true};
     List<Monster> monsters=new();
     Encounter encounter=new();
-    readonly Stack<string> history=new();
+    readonly Stack<UndoState> history=new();
+    readonly SessionHistory session=new();
+    readonly ComboBox damageSource=new(){Width=200,DropDownStyle=ComboBoxStyle.DropDown};
+    SessionHistoryWindow? sessionWindow;
     readonly ListBox library=new(){Dock=DockStyle.Fill,IntegralHeight=false};
     readonly TextBox search=new(){PlaceholderText="Search name, type, or CR…",Dock=DockStyle.Fill};
     readonly ComboBox cr=new(){DropDownStyle=ComboBoxStyle.DropDownList,Dock=DockStyle.Fill};
@@ -57,12 +60,13 @@ public class MainWindow : Form
     readonly NumericUpDown quantity=new(){Minimum=1,Maximum=99,Value=1,Width=55};
     BindingList<Combatant> rows=new();
     bool refreshing;
-    string? beforeEdit;
+    UndoState? beforeEdit;
     public MainWindow(string? dataDirectory=null)
     {
         if(dataDirectory!=null)folder=Path.GetFullPath(dataDirectory);
-        Text="Encounter Architect • 2024 Monster & Combat Tracker"; Width=1600; Height=950; MinimumSize=new Size(1180,700); StartPosition=FormStartPosition.CenterScreen;
+        Text=$"Encounter Architect v{AppVersion.Current} • 2024 Monster & Combat Tracker"; Width=1600; Height=950; MinimumSize=new Size(1180,700); StartPosition=FormStartPosition.CenterScreen;
         Font=new Font("Segoe UI",10); BackColor=Background; ForeColor=Ink;
+        damageSource.AutoCompleteMode=AutoCompleteMode.SuggestAppend;damageSource.AutoCompleteSource=AutoCompleteSource.ListItems;
         using var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("EncounterArchitect.monsters.json")!;
         monsters=JsonSerializer.Deserialize<List<Monster>>(stream,json)!;
         Directory.CreateDirectory(folder);
@@ -80,18 +84,19 @@ public class MainWindow : Form
         cr.Items.Add("All challenge ratings");foreach(var v in monsters.Select(m=>m.CR).Distinct().OrderBy(CrValue))cr.Items.Add(v);cr.SelectedIndex=0;
         search.TextChanged+=(_,_)=>Filter();cr.SelectedIndexChanged+=(_,_)=>Filter();library.SelectedIndexChanged+=(_,_)=>ShowMonster(library.SelectedItem as Monster);library.DoubleClick+=(_,_)=>AddSelected();
         var middle=Pane("STAT BLOCK",out var midBody);root.Controls.Add(middle,1,0);midBody.RowCount=2;midBody.RowStyles.Add(new(SizeType.Absolute,65));midBody.RowStyles.Add(new(SizeType.Percent,100));midBody.Controls.Add(statTitle,0,0);midBody.Controls.Add(stats,0,1);
-        var right=Pane("ENCOUNTER",out var body);root.Controls.Add(right,2,0);body.RowCount=6;
-        body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Percent,100));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,45));
-        var file=Flow();file.Controls.Add(Button("New",NewEncounter));file.Controls.Add(Button("Open",Open));file.Controls.Add(Button("Save as…",Export));file.Controls.Add(Button("Undo",Undo));file.Controls.Add(Button("About",()=>MessageBox.Show("Encounter Architect 1.1 • Offline Windows x64\n\n330 SRD monsters for the 2024 rules. Not the complete Monster Manual.\n\nThis work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.\n\nChanges: stat blocks extracted and reformatted for search and encounter tracking. Independent app; not affiliated with or endorsed by Wizards of the Coast.\n\nSaves: "+folder,"About Encounter Architect")));body.Controls.Add(file,0,0);
+        var right=Pane($"ENCOUNTER · v{AppVersion.Current}",out var body);root.Controls.Add(right,2,0);body.RowCount=7;
+        body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Percent,100));body.RowStyles.Add(new(SizeType.Absolute,42));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,45));
+        var file=Flow();file.Controls.Add(Button("New",NewEncounter));file.Controls.Add(Button("Open",Open));file.Controls.Add(Button("Save as…",Export));file.Controls.Add(Button("Undo",Undo));file.Controls.Add(Button("About",()=>MessageBox.Show($"Encounter Architect v{AppVersion.Current} • Offline Windows x64\n\n330 SRD monsters for the 2024 rules. Not the complete Monster Manual.\n\nThis work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.\n\nChanges: stat blocks extracted and reformatted for search and encounter tracking. Independent app; not affiliated with or endorsed by Wizards of the Coast.\n\nSaves: "+folder,"About Encounter Architect")));body.Controls.Add(file,0,0);
         var turns=Flow();turns.Controls.Add(round);turns.Controls.Add(Button("Roll initiative",Roll));turns.Controls.Add(Button("Sort",Sort));turns.Controls.Add(Button("Next turn →",Next));body.Controls.Add(turns,0,1);
         grid.ColumnHeadersHeight=44;grid.ColumnHeadersDefaultCellStyle.Padding=new Padding(3);grid.ColumnHeadersHeightSizeMode=DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         AddColumn("Name","Creature",130);AddColumn("Initiative","Init",46);AddColumn("HP","HP",48);AddColumn("MaxHP","Max",48);AddColumn("TempHP","Temp",48);AddColumn("AC","AC",42);AddColumn("Notes","Conditions / notes",150);
         body.Controls.Add(grid,0,2);grid.DataSource=rows;grid.DefaultCellStyle.BackColor=Surface;grid.DefaultCellStyle.ForeColor=Ink;grid.DefaultCellStyle.SelectionBackColor=Color.FromArgb(62,77,98);grid.DefaultCellStyle.SelectionForeColor=Color.White;grid.DefaultCellStyle.Padding=new Padding(3,8,3,8);grid.ColumnHeadersDefaultCellStyle.BackColor=Background;grid.ColumnHeadersDefaultCellStyle.ForeColor=Ink;grid.EnableHeadersVisualStyles=false;grid.GridColor=Color.FromArgb(53,62,76);grid.AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill;
         grid.SelectionChanged+=(_,_)=>{if(!refreshing && Selected is {} c)ShowMonster(c.Monster);};
-        grid.CellBeginEdit+=(_,_)=>beforeEdit=Snapshot();grid.CellValidating+=ValidateCell;grid.CellEndEdit+=(_,_)=>{if(beforeEdit!=null)history.Push(beforeEdit);beforeEdit=null;Save();PaintRows();};grid.DataError+=(_,e)=>{e.ThrowException=false;status.Text="Enter a valid whole number.";};
-        var damage=Flow();damage.Controls.Add(new Label{Text="Amount",AutoSize=true,Padding=new Padding(0,7,0,0)});damage.Controls.Add(amount);damage.Controls.Add(Button("Damage",()=>Change(c=>c.Damage((int)amount.Value))));damage.Controls.Add(Button("Heal",()=>Change(c=>c.Heal((int)amount.Value))));damage.Controls.Add(Button("Set temp HP",()=>Change(c=>c.TempHP=(int)amount.Value)));body.Controls.Add(damage,0,3);
-        var manage=Flow();manage.Controls.Add(Button("Duplicate",Duplicate));manage.Controls.Add(Button("Remove",Remove));manage.Controls.Add(Button("Restore HP",()=>Change(c=>{c.HP=c.MaxHP;c.TempHP=0;})));body.Controls.Add(manage,0,4);
-        body.Controls.Add(new Label{Text="Edit cells for initiative, HP and notes. Gold = current turn.\n0 HP stays in the roster. Damage uses temporary HP first.",Dock=DockStyle.Fill,ForeColor=Color.Silver,Font=new Font("Segoe UI",9)},0,5);
+        grid.CellBeginEdit+=(_,_)=>beforeEdit=CaptureUndo();grid.CellValidating+=ValidateCell;grid.CellEndEdit+=(_,_)=>FinishCellEdit();grid.DataError+=(_,e)=>{e.ThrowException=false;status.Text="Enter a valid whole number.";};
+        var sourceRow=Flow();sourceRow.Controls.Add(new Label{Text="Character",AutoSize=true,Padding=new Padding(0,7,8,0)});sourceRow.Controls.Add(damageSource);sourceRow.Controls.Add(new Label{Text="Select or type a name",AutoSize=true,Padding=new Padding(6,7,0,0),ForeColor=Color.Silver});body.Controls.Add(sourceRow,0,3);
+        var damage=Flow();damage.Controls.Add(new Label{Text="Amount",AutoSize=true,Padding=new Padding(0,7,0,0)});damage.Controls.Add(amount);damage.Controls.Add(Button("Damage",()=>Change(c=>c.Damage((int)amount.Value),"Damage",(int)amount.Value)));damage.Controls.Add(Button("Heal",()=>Change(c=>c.Heal((int)amount.Value),"Healing",(int)amount.Value)));damage.Controls.Add(Button("Set temp HP",()=>Change(c=>c.TempHP=(int)amount.Value,"Set temp HP",(int)amount.Value)));body.Controls.Add(damage,0,4);
+        var manage=Flow();manage.Controls.Add(Button("Duplicate",Duplicate));manage.Controls.Add(Button("Remove",Remove));manage.Controls.Add(Button("Restore HP",()=>Change(c=>{c.HP=c.MaxHP;c.TempHP=0;},"Restore HP")));manage.Controls.Add(Button("Session history",ShowSessionHistory));body.Controls.Add(manage,0,5);
+        body.Controls.Add(new Label{Text="Edit cells for initiative, HP and notes. Gold = current turn.\nSession history and typed names clear when you exit.",Dock=DockStyle.Fill,ForeColor=Color.Silver,Font=new Font("Segoe UI",9)},0,6);
         ApplyTheme(this);stats.BackColor=Surface;stats.Font=new Font("Consolas",11);stats.ForeColor=Ink;library.Font=new Font("Segoe UI",10);Filter();RefreshRows();
         FormClosing+=(_,_)=>{grid.EndEdit();Save();};
         var help=new ToolTip();help.SetToolTip(quantity,"Number of separate creatures to add");help.SetToolTip(grid,"Initiative ties keep the roster's existing order; you can edit initiative to break a tie.");
@@ -107,20 +112,30 @@ public class MainWindow : Form
     void Filter(){var q=search.Text.Trim();library.BeginUpdate();library.Items.Clear();foreach(var m in monsters.Where(m=>(cr.SelectedIndex<=0||m.CR==(string)cr.SelectedItem!)&&($"{m.Name} {m.Type} CR {m.CR}").Contains(q,StringComparison.OrdinalIgnoreCase)).OrderBy(m=>m.Name))library.Items.Add(m);library.EndUpdate();if(library.Items.Count>0)library.SelectedIndex=0;else{statTitle.Text="No matches";stats.Text="Try a different name, creature type, or challenge rating.";}}
     void ShowMonster(Monster? m){if(m==null)return;statTitle.Text=m.Name;stats.Text=m.Stats;foreach(var heading in new[]{"Traits","Actions","Bonus Actions","Reactions","Legendary Actions"}){int start=0;while((start=stats.Text.IndexOf(heading,start,StringComparison.Ordinal))>=0){stats.Select(start,heading.Length);stats.SelectionColor=Accent;stats.SelectionFont=new Font(stats.Font,FontStyle.Bold);start+=heading.Length;}}stats.Select(0,0);stats.ScrollToCaret();}
     string Snapshot()=>JsonSerializer.Serialize(encounter,json);
-    void Remember(){grid.EndEdit();history.Push(Snapshot());if(history.Count>100){var keep=history.Take(100).Reverse().ToArray();history.Clear();foreach(var s in keep)history.Push(s);}}
+    UndoState CaptureUndo()=>new(Snapshot(),session.Entries.Count);
+    void Remember(){grid.EndEdit();history.Push(CaptureUndo());if(history.Count>100){var keep=history.Take(100).Reverse().ToArray();history.Clear();foreach(var s in keep)history.Push(s);}}
+    void RememberCharacter(){var name=damageSource.Text.Trim();if(name.Length>0&&!damageSource.Items.Cast<string>().Any(x=>x.Equals(name,StringComparison.OrdinalIgnoreCase)))damageSource.Items.Add(name);}
+    void UpdateCharacterChoices(){RememberCharacter();foreach(var c in encounter.Creatures)if(!damageSource.Items.Cast<string>().Any(x=>x.Equals(c.Name,StringComparison.OrdinalIgnoreCase)))damageSource.Items.Add(c.Name);}
+    void FinishCellEdit()
+    {
+        if(beforeEdit is {} undo){history.Push(undo);var old=JsonSerializer.Deserialize<Encounter>(undo.EncounterJson,json)!;
+            foreach(var c in encounter.Creatures){var previous=old.Creatures.Find(x=>x.Id==c.Id);if(previous!=null&&(previous.HP!=c.HP||previous.TempHP!=c.TempHP))session.Record(c,encounter.Round,"Manual edit","Adjustment",Math.Abs(c.HP-previous.HP),previous.HP,previous.TempHP);}}
+        beforeEdit=null;Save();PaintRows();
+    }
+    void ShowSessionHistory(){if(sessionWindow==null||sessionWindow.IsDisposed)sessionWindow=new SessionHistoryWindow(session);if(!sessionWindow.Visible)sessionWindow.Show(this);sessionWindow.BringToFront();}
     void Save(){try{var temp=AutoPath+".tmp";File.WriteAllText(temp,Snapshot());File.Move(temp,AutoPath,true);status.Text=$"  {monsters.Count} monsters · {encounter.Creatures.Count} combatants · Autosaved {DateTime.Now:t}";}catch(Exception e){status.Text="  Save failed: "+e.Message;}}
-    void RefreshRows(Guid? select=null){refreshing=true;rows=new BindingList<Combatant>(encounter.Creatures);grid.DataSource=rows;round.Text=$"Round {encounter.Round}";if(select is {} id){foreach(DataGridViewRow r in grid.Rows)if(r.DataBoundItem is Combatant bound&&bound.Id==id){grid.CurrentCell=r.Cells[0];break;}}refreshing=false;PaintRows();if(Selected is {} c)ShowMonster(c.Monster);}
+    void RefreshRows(Guid? select=null){refreshing=true;rows=new BindingList<Combatant>(encounter.Creatures);grid.DataSource=rows;round.Text=$"Round {encounter.Round}";if(select is {} id){foreach(DataGridViewRow r in grid.Rows)if(r.DataBoundItem is Combatant bound&&bound.Id==id){grid.CurrentCell=r.Cells[0];break;}}refreshing=false;UpdateCharacterChoices();PaintRows();if(Selected is {} c)ShowMonster(c.Monster);}
     void PaintRows(){foreach(DataGridViewRow r in grid.Rows){if(r.DataBoundItem is not Combatant c)continue;r.DefaultCellStyle.ForeColor=c.HP==0?Color.FromArgb(244,132,132):Ink;r.DefaultCellStyle.BackColor=c.Id==encounter.Active?Color.FromArgb(89,67,36):Surface;}round.Text=$"Round {encounter.Round}";}
     void AddSelected(){if(library.SelectedItem is not Monster m)return;Remember();Guid? last=null;for(int i=0;i<quantity.Value;i++){var c=Make(m);encounter.Creatures.Add(c);last=c.Id;}RefreshRows(last);Save();}
     Combatant Make(Monster m){int number=1;while(encounter.Creatures.Any(c=>c.Name==$"{m.Name} {number}"))number++;return new(){Monster=m,Name=$"{m.Name} {number}",HP=m.HP,MaxHP=m.HP,AC=m.AC,Initiative=m.Initiative};}
-    void Change(Action<Combatant> action){if(Selected is not {} c)return;Remember();action(c);RefreshRows(c.Id);Save();}
+    void Change(Action<Combatant> action,string kind,int entered=0){if(Selected is not {} c)return;if(!grid.EndEdit())return;Remember();int hp=c.HP,temp=c.TempHP;action(c);RememberCharacter();session.Record(c,encounter.Round,damageSource.Text,kind,entered,hp,temp);RefreshRows(c.Id);Save();}
     void Duplicate(){if(Selected is not {} c)return;Remember();var copy=Make(c.Monster);encounter.Creatures.Add(copy);RefreshRows(copy.Id);Save();}
     void Remove(){if(Selected is not {} c)return;Remember();encounter.Creatures.Remove(c);if(encounter.Active==c.Id)encounter.Active=null;RefreshRows();Save();}
     void Roll(){if(rows.Count==0)return;Remember();foreach(var c in encounter.Creatures)c.Initiative=Random.Shared.Next(1,21)+c.Monster.Initiative;encounter.Active=null;encounter.Round=1;SortCore();RefreshRows();Save();}
     void SortCore()=>encounter.SortByInitiative();
     void Sort(){Remember();var id=Selected?.Id;SortCore();RefreshRows(id);Save();}
     void Next(){if(rows.Count==0)return;Remember();encounter.AdvanceTurn();RefreshRows(encounter.Active);Save();}
-    void Undo(){if(history.Count==0)return;encounter=JsonSerializer.Deserialize<Encounter>(history.Pop(),json)!;RefreshRows();Save();}
+    void Undo(){if(!grid.EndEdit()||history.Count==0)return;var undo=history.Pop();encounter=JsonSerializer.Deserialize<Encounter>(undo.EncounterJson,json)!;session.ReverseFrom(undo.LogCount);RefreshRows();Save();}
     void ValidateCell(object? sender,DataGridViewCellValidatingEventArgs e){var p=grid.Columns[e.ColumnIndex].DataPropertyName;string text=e.FormattedValue?.ToString()??"";if(p=="Name"&&string.IsNullOrWhiteSpace(text)){e.Cancel=true;status.Text="Creature name cannot be empty.";return;}if(p is "Initiative" or "HP" or "MaxHP" or "TempHP" or "AC"){if(!int.TryParse(text,out var n)||n>1000000||n<(p=="Initiative"?-1000:p=="MaxHP"?1:0)){e.Cancel=true;status.Text="Enter a whole number in range (HP ≥ 0, max HP ≥ 1).";}else if(Selected is {} c&&((p=="HP"&&n>c.MaxHP)||(p=="MaxHP"&&n<c.HP))){e.Cancel=true;status.Text="HP cannot exceed max HP. Adjust HP or max HP first.";}}}
     void NewEncounter(){if(rows.Count>0&&MessageBox.Show("Clear this encounter? Undo can restore it.","New encounter",MessageBoxButtons.OKCancel)!=DialogResult.OK)return;Remember();encounter=new();RefreshRows();Save();}
     void Export(){using var d=new SaveFileDialog{Filter="Encounter JSON|*.json",FileName="encounter.json"};if(d.ShowDialog()!=DialogResult.OK)return;try{grid.EndEdit();File.WriteAllText(d.FileName,Snapshot());status.Text="Encounter saved.";}catch(Exception e){MessageBox.Show(e.Message,"Could not save");}}
@@ -165,6 +180,7 @@ static class ModelTests
         e.AdvanceTurn();e.AdvanceTurn();e.AdvanceTurn();
         if(e.Active!=a.Id||e.Round!=2)throw new Exception("Round wrap");
         ParserTests.Run();
-        File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"self-test.txt"),"PASS: temporary HP, damage floor, healing cap, persistence, initiative ties, first turn, round wrap; parser: 330 SRD blocks, multiline labels, legacy fields, missing values, multiple blocks, invalid input");
+        SessionHistoryTests.Run();
+        File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"self-test.txt"),"PASS: damage, temporary HP, healing, persistence, initiative, round wrap; parser: 330 SRD blocks and edge cases; session history: attribution, HP and temp changes, overkill, undo totals, new-session reset, no save leakage; version metadata.");
     }
 }

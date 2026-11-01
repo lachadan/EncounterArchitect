@@ -1,5 +1,14 @@
 # Changes
 
+## 1.2.0 — 2026-11-01
+
+- Display the build version in the main title, encounter heading, and About.
+- Record session-only damage history with character attribution and HP changes.
+- Show damage totals per character, including temporary HP and overkill details.
+- Log healing, temporary HP changes, restored HP, and direct HP adjustments.
+- Mark undone events as reversed and exclude them from damage totals.
+- Keep session history out of saved files and clear it when the app exits.
+
 ## 1.1.0 — 2026-11-01
 
 - Paste individual monster stat blocks copied from D&D Beyond.
