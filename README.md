@@ -6,6 +6,9 @@ Includes 330 monsters from SRD 5.2.1 for the 2024 rules.
 
 ## Run
 
+[Download the Windows application ZIP](https://github.com/lachadan/EncounterArchitect/releases/latest/download/EncounterArchitect-Windows.zip)
+from the [latest release](https://github.com/lachadan/EncounterArchitect/releases/latest).
+
 Extract the Windows release ZIP and run **EncounterArchitect.exe**. No separate
 .NET installation, account, or internet connection is needed. Windows x64 only.
 
