@@ -95,6 +95,25 @@ History spans encounter changes within the current application session, clears
 when the app exits, and is never written to encounter autosaves or exported
 files. Closing only the history window keeps the log until you exit the app.
 
+## In the Works
+
+Planned enhancements for future releases. Scope and release dates are not yet
+assigned; these features are not available in the current version.
+
+- [ ] **Condition tracking and turn-based reminders** — Track conditions such as
+  Prone or Frightened and flag when they expire, including effects tied to
+  another creature's turn.
+- [ ] **Reusable encounter templates** — Prepare encounters ahead of time and
+  start fresh copies without carrying over damage or spent resources.
+- [ ] **Saved player roster** — Store character names and initiative bonuses
+  for quick encounter setup and damage attribution.
+- [ ] **Ability-use tracking** — Track legendary resistance, legendary actions,
+  spell slots, and recharge abilities separately for each creature.
+- [ ] **Optional session summary export** — Save damage history and character
+  totals before exiting while retaining the default clear-on-exit behavior.
+- [ ] **Player-facing display** — Show initiative order and creature names on
+  another screen while keeping exact monster HP hidden.
+
 ## Build and check
 
 Install the .NET 10 SDK, then run:
