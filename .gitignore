@@ -5,4 +5,7 @@ publish/
 *.user
 *.suo
 self-test.txt
+encounter*.json
+custom-monsters.json
+*.tmp
 

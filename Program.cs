@@ -12,7 +12,9 @@ static class Program
         // see https://aka.ms/applicationconfiguration.
         ApplicationConfiguration.Initialize();
         if (Environment.GetCommandLineArgs().Contains("--self-test")) { ModelTests.Run(); return; }
-        Application.Run(new MainWindow());
+        var args=Environment.GetCommandLineArgs();
+        int dataOption=Array.IndexOf(args,"--data-dir");
+        Application.Run(new MainWindow(dataOption>=0&&dataOption+1<args.Length?args[dataOption+1]:null));
     }    
 }
 

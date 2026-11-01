@@ -1,4 +1,4 @@
-ENCOUNTER ARCHITECT 1.0
+ENCOUNTER ARCHITECT 1.1
 Offline monster lookup and encounter tracking for the D&D 2024 rules
 
 START
@@ -66,4 +66,11 @@ SOURCE
 The separate EncounterArchitect-Source.zip contains the source, embedded monster
 data, extraction script, and build instructions. It is not required to run.
 
+
+
+PASTE FROM D&D BEYOND
+Click Paste from D&D Beyond, paste one complete stat block, preview the detected
+fields, correct them, and save to your local library. Missing initiative bonuses
+must be entered manually. Imported content is stored only on your computer.
+See README.md in the source package for version history and build details.
 

@@ -58,8 +58,9 @@ public class MainWindow : Form
     BindingList<Combatant> rows=new();
     bool refreshing;
     string? beforeEdit;
-    public MainWindow()
+    public MainWindow(string? dataDirectory=null)
     {
+        if(dataDirectory!=null)folder=Path.GetFullPath(dataDirectory);
         Text="Encounter Architect • 2024 Monster & Combat Tracker"; Width=1600; Height=950; MinimumSize=new Size(1180,700); StartPosition=FormStartPosition.CenterScreen;
         Font=new Font("Segoe UI",10); BackColor=Background; ForeColor=Ink;
         using var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("EncounterArchitect.monsters.json")!;
@@ -71,16 +72,17 @@ public class MainWindow : Form
         root.ColumnStyles.Add(new(SizeType.Percent,23));root.ColumnStyles.Add(new(SizeType.Percent,35));root.ColumnStyles.Add(new(SizeType.Percent,42));
         Controls.Add(root);Controls.Add(status);
         var left=Pane("BESTIARY",out var leftBody);root.Controls.Add(left,0,0);
-        leftBody.RowCount=5; leftBody.RowStyles.Add(new(SizeType.Absolute,38));leftBody.RowStyles.Add(new(SizeType.Absolute,38));leftBody.RowStyles.Add(new(SizeType.Percent,100));leftBody.RowStyles.Add(new(SizeType.Absolute,45));leftBody.RowStyles.Add(new(SizeType.Absolute,45));
+        leftBody.RowCount=6; leftBody.RowStyles.Add(new(SizeType.Absolute,38));leftBody.RowStyles.Add(new(SizeType.Absolute,38));leftBody.RowStyles.Add(new(SizeType.Percent,100));leftBody.RowStyles.Add(new(SizeType.Absolute,45));leftBody.RowStyles.Add(new(SizeType.Absolute,45));leftBody.RowStyles.Add(new(SizeType.Absolute,45));
         leftBody.Controls.Add(search,0,0);leftBody.Controls.Add(cr,0,1);leftBody.Controls.Add(library,0,2);
         var add=Flow();add.Controls.Add(quantity);add.Controls.Add(Button("+ Add to encounter",()=>AddSelected()));leftBody.Controls.Add(add,0,3);
         var custom=Flow();custom.Controls.Add(Button("Custom creature",Custom));custom.Controls.Add(Button("Import JSON",Import));leftBody.Controls.Add(custom,0,4);
+        var paste=Button("Paste from D&D Beyond",PasteFromBeyond);paste.Dock=DockStyle.Fill;leftBody.Controls.Add(paste,0,5);
         cr.Items.Add("All challenge ratings");foreach(var v in monsters.Select(m=>m.CR).Distinct().OrderBy(CrValue))cr.Items.Add(v);cr.SelectedIndex=0;
         search.TextChanged+=(_,_)=>Filter();cr.SelectedIndexChanged+=(_,_)=>Filter();library.SelectedIndexChanged+=(_,_)=>ShowMonster(library.SelectedItem as Monster);library.DoubleClick+=(_,_)=>AddSelected();
         var middle=Pane("STAT BLOCK",out var midBody);root.Controls.Add(middle,1,0);midBody.RowCount=2;midBody.RowStyles.Add(new(SizeType.Absolute,65));midBody.RowStyles.Add(new(SizeType.Percent,100));midBody.Controls.Add(statTitle,0,0);midBody.Controls.Add(stats,0,1);
         var right=Pane("ENCOUNTER",out var body);root.Controls.Add(right,2,0);body.RowCount=6;
         body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Percent,100));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,48));body.RowStyles.Add(new(SizeType.Absolute,45));
-        var file=Flow();file.Controls.Add(Button("New",NewEncounter));file.Controls.Add(Button("Open",Open));file.Controls.Add(Button("Save as…",Export));file.Controls.Add(Button("Undo",Undo));file.Controls.Add(Button("About",()=>MessageBox.Show("Encounter Architect 1.0 • Offline Windows x64\n\n330 SRD monsters for the 2024 rules. Not the complete Monster Manual.\n\nThis work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.\n\nChanges: stat blocks extracted and reformatted for search and encounter tracking. Independent app; not affiliated with or endorsed by Wizards of the Coast.\n\nSaves: "+folder,"About Encounter Architect")));body.Controls.Add(file,0,0);
+        var file=Flow();file.Controls.Add(Button("New",NewEncounter));file.Controls.Add(Button("Open",Open));file.Controls.Add(Button("Save as…",Export));file.Controls.Add(Button("Undo",Undo));file.Controls.Add(Button("About",()=>MessageBox.Show("Encounter Architect 1.1 • Offline Windows x64\n\n330 SRD monsters for the 2024 rules. Not the complete Monster Manual.\n\nThis work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode.\n\nChanges: stat blocks extracted and reformatted for search and encounter tracking. Independent app; not affiliated with or endorsed by Wizards of the Coast.\n\nSaves: "+folder,"About Encounter Architect")));body.Controls.Add(file,0,0);
         var turns=Flow();turns.Controls.Add(round);turns.Controls.Add(Button("Roll initiative",Roll));turns.Controls.Add(Button("Sort",Sort));turns.Controls.Add(Button("Next turn →",Next));body.Controls.Add(turns,0,1);
         grid.ColumnHeadersHeight=44;grid.ColumnHeadersDefaultCellStyle.Padding=new Padding(3);grid.ColumnHeadersHeightSizeMode=DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
         AddColumn("Name","Creature",130);AddColumn("Initiative","Init",46);AddColumn("HP","HP",48);AddColumn("MaxHP","Max",48);AddColumn("TempHP","Temp",48);AddColumn("AC","AC",42);AddColumn("Notes","Conditions / notes",150);
@@ -96,7 +98,7 @@ public class MainWindow : Form
     }
     string AutoPath=>Path.Combine(folder,"encounter.json");string CustomPath=>Path.Combine(folder,"custom-monsters.json");
     Combatant? Selected=>grid.CurrentRow?.DataBoundItem as Combatant;
-    static double CrValue(string s)=>s.Contains('/')?double.Parse(s.Split('/')[0])/double.Parse(s.Split('/')[1]):double.TryParse(s,out var n)?n:999;
+    static double CrValue(string s){var parts=s.Split('/');return parts.Length==2&&double.TryParse(parts[0],out var a)&&double.TryParse(parts[1],out var b)&&b!=0?a/b:double.TryParse(s,out var n)?n:999;}
     static FlowLayoutPanel Flow()=>new(){Dock=DockStyle.Fill,WrapContents=false,AutoScroll=true,Margin=new Padding(0)};
     static Button Button(string title,Action action){var b=new Button{Text=title,AutoSize=true,Height=33,FlatStyle=FlatStyle.Flat,Margin=new Padding(0,2,6,2),Padding=new Padding(5,1,5,1),Cursor=Cursors.Hand};b.Click+=(_,_)=>action();return b;}
     static Control Pane(string title,out TableLayoutPanel body){var p=new Panel{Dock=DockStyle.Fill,Padding=new Padding(12),Margin=new Padding(0,0,10,0),BackColor=Surface};body=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1};body.ColumnStyles.Add(new(SizeType.Percent,100));p.Controls.Add(body);p.Controls.Add(new Label{Text=title,Dock=DockStyle.Top,Height=38,ForeColor=Accent,Font=new Font("Segoe UI",11,FontStyle.Bold)});return p;}
@@ -107,8 +109,8 @@ public class MainWindow : Form
     string Snapshot()=>JsonSerializer.Serialize(encounter,json);
     void Remember(){grid.EndEdit();history.Push(Snapshot());if(history.Count>100){var keep=history.Take(100).Reverse().ToArray();history.Clear();foreach(var s in keep)history.Push(s);}}
     void Save(){try{var temp=AutoPath+".tmp";File.WriteAllText(temp,Snapshot());File.Move(temp,AutoPath,true);status.Text=$"  {monsters.Count} monsters · {encounter.Creatures.Count} combatants · Autosaved {DateTime.Now:t}";}catch(Exception e){status.Text="  Save failed: "+e.Message;}}
-    void RefreshRows(Guid? select=null){refreshing=true;rows=new BindingList<Combatant>(encounter.Creatures);grid.DataSource=rows;round.Text=$"Round {encounter.Round}";if(select is {} id){foreach(DataGridViewRow r in grid.Rows)if(((Combatant)r.DataBoundItem).Id==id){grid.CurrentCell=r.Cells[0];break;}}refreshing=false;PaintRows();if(Selected is {} c)ShowMonster(c.Monster);}
-    void PaintRows(){foreach(DataGridViewRow r in grid.Rows){var c=(Combatant)r.DataBoundItem;r.DefaultCellStyle.ForeColor=c.HP==0?Color.FromArgb(244,132,132):Ink;r.DefaultCellStyle.BackColor=c.Id==encounter.Active?Color.FromArgb(89,67,36):Surface;}round.Text=$"Round {encounter.Round}";}
+    void RefreshRows(Guid? select=null){refreshing=true;rows=new BindingList<Combatant>(encounter.Creatures);grid.DataSource=rows;round.Text=$"Round {encounter.Round}";if(select is {} id){foreach(DataGridViewRow r in grid.Rows)if(r.DataBoundItem is Combatant bound&&bound.Id==id){grid.CurrentCell=r.Cells[0];break;}}refreshing=false;PaintRows();if(Selected is {} c)ShowMonster(c.Monster);}
+    void PaintRows(){foreach(DataGridViewRow r in grid.Rows){if(r.DataBoundItem is not Combatant c)continue;r.DefaultCellStyle.ForeColor=c.HP==0?Color.FromArgb(244,132,132):Ink;r.DefaultCellStyle.BackColor=c.Id==encounter.Active?Color.FromArgb(89,67,36):Surface;}round.Text=$"Round {encounter.Round}";}
     void AddSelected(){if(library.SelectedItem is not Monster m)return;Remember();Guid? last=null;for(int i=0;i<quantity.Value;i++){var c=Make(m);encounter.Creatures.Add(c);last=c.Id;}RefreshRows(last);Save();}
     Combatant Make(Monster m){int number=1;while(encounter.Creatures.Any(c=>c.Name==$"{m.Name} {number}"))number++;return new(){Monster=m,Name=$"{m.Name} {number}",HP=m.HP,MaxHP=m.HP,AC=m.AC,Initiative=m.Initiative};}
     void Change(Action<Combatant> action){if(Selected is not {} c)return;Remember();action(c);RefreshRows(c.Id);Save();}
@@ -125,6 +127,23 @@ public class MainWindow : Form
     void Open(){using var d=new OpenFileDialog{Filter="Encounter JSON|*.json"};if(d.ShowDialog()!=DialogResult.OK)return;try{var loaded=ReadEncounter(d.FileName);Remember();encounter=loaded;RefreshRows();Save();}catch(Exception e){MessageBox.Show(e.Message,"Could not open encounter");}}
     Encounter ReadEncounter(string path){var e=JsonSerializer.Deserialize<Encounter>(File.ReadAllText(path),json)??throw new Exception("Empty encounter.");if(e.Creatures==null||e.Round<1||e.Creatures.Any(c=>c==null||c.Monster==null||c.MaxHP<1||c.HP<0||c.HP>c.MaxHP||c.TempHP<0)||e.Creatures.Select(c=>c.Id).Distinct().Count()!=e.Creatures.Count)throw new Exception("Invalid encounter data.");return e;}
     List<Monster> ReadMonsters(string path){var m=JsonSerializer.Deserialize<List<Monster>>(File.ReadAllText(path),json)??throw new Exception("Expected an array of monsters.");if(m.Any(x=>x==null||string.IsNullOrWhiteSpace(x.Name)||x.HP<1||x.HP>1000000||x.AC<0||x.Stats==null))throw new Exception("Each monster needs a name, positive HP, nonnegative AC, and Stats text.");return m;}
+    void PasteFromBeyond()
+    {
+        using var dialog=new PasteMonsterDialog();
+        if(dialog.ShowDialog(this)!=DialogResult.OK||dialog.Monster is not {} m)return;
+        if(monsters.Any(x=>x.Name.Equals(m.Name,StringComparison.OrdinalIgnoreCase))&&
+            MessageBox.Show($"Replace '{m.Name}' in your library? Existing encounter creatures keep their current stats.","Monster already exists",MessageBoxButtons.OKCancel,MessageBoxIcon.Question)!=DialogResult.OK)return;
+        try {
+            var custom=File.Exists(CustomPath)?ReadMonsters(CustomPath):new();
+            custom.RemoveAll(x=>x.Name.Equals(m.Name,StringComparison.OrdinalIgnoreCase));custom.Add(m);
+            var temp=CustomPath+".tmp";File.WriteAllText(temp,JsonSerializer.Serialize(custom,json));File.Move(temp,CustomPath,true);
+            monsters.RemoveAll(x=>x.Name.Equals(m.Name,StringComparison.OrdinalIgnoreCase));monsters.Add(m);
+            var values=monsters.Select(x=>x.CR).Distinct().OrderBy(CrValue).ToArray();
+            cr.Items.Clear();cr.Items.Add("All challenge ratings");cr.Items.AddRange(values);cr.SelectedIndex=0;
+            search.Text=m.Name;Filter();library.SelectedItem=m;Save();
+            status.Text=$"Saved {m.Name} to your local monster library.";
+        } catch(Exception e){MessageBox.Show(e.Message,"Could not save monster");}
+    }
     void Import(){using var d=new OpenFileDialog{Filter="Monster JSON|*.json"};if(d.ShowDialog()!=DialogResult.OK)return;try{var incoming=ReadMonsters(d.FileName);var custom=File.Exists(CustomPath)?ReadMonsters(CustomPath):new();foreach(var m in incoming){custom.RemoveAll(x=>x.Name.Equals(m.Name,StringComparison.OrdinalIgnoreCase));custom.Add(m);}File.WriteAllText(CustomPath,JsonSerializer.Serialize(custom,json));foreach(var m in incoming){monsters.RemoveAll(x=>x.Name.Equals(m.Name,StringComparison.OrdinalIgnoreCase));monsters.Add(m);}Filter();Save();MessageBox.Show($"Imported {incoming.Count} monsters.");}catch(Exception e){MessageBox.Show(e.Message,"Import failed");}}
     void Custom(){using var f=new Form{Text="Custom creature / player character",Width=600,Height=650,StartPosition=FormStartPosition.CenterParent,BackColor=Surface,ForeColor=Ink};var p=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(16),ColumnCount=2,RowCount=7};p.ColumnStyles.Add(new(SizeType.Absolute,110));p.ColumnStyles.Add(new(SizeType.Percent,100));var name=new TextBox{Dock=DockStyle.Fill};var hp=new NumericUpDown{Minimum=1,Maximum=1000000,Value=10};var ac=new NumericUpDown{Maximum=1000,Value=10};var init=new NumericUpDown{Minimum=-100,Maximum=100,Value=0};var text=new TextBox{Multiline=true,Dock=DockStyle.Fill,ScrollBars=ScrollBars.Vertical};Control[] inputs={name,hp,ac,init,text};string[] labels={"Name","Max HP","AC","Initiative bonus","Stat block / notes"};for(int i=0;i<inputs.Length;i++){p.RowStyles.Add(new(i==4?SizeType.Percent:SizeType.Absolute,i==4?100:42));p.Controls.Add(new Label{Text=labels[i],AutoSize=true},0,i);p.Controls.Add(inputs[i],1,i);}p.RowStyles.Add(new(SizeType.Absolute,44));var save=Button("Save to library",()=>{if(string.IsNullOrWhiteSpace(name.Text))return;try{var m=new Monster{Name=name.Text.Trim(),HP=(int)hp.Value,AC=(int)ac.Value,Initiative=(int)init.Value,Stats=text.Text,Type="Custom"};if(monsters.Any(x=>x.Name.Equals(m.Name,StringComparison.OrdinalIgnoreCase))){MessageBox.Show("Choose a unique creature name.");return;}var custom=File.Exists(CustomPath)?ReadMonsters(CustomPath):new();custom.Add(m);File.WriteAllText(CustomPath,JsonSerializer.Serialize(custom,json));monsters.Add(m);Filter();library.SelectedItem=m;f.Close();Save();}catch(Exception e){MessageBox.Show(e.Message);}});p.Controls.Add(save,1,5);f.Controls.Add(p);ApplyTheme(f);f.ShowDialog(this);}
 }
@@ -145,8 +164,7 @@ static class ModelTests
         e.AdvanceTurn();if(e.Active!=a.Id||e.Round!=1)throw new Exception("First turn");
         e.AdvanceTurn();e.AdvanceTurn();e.AdvanceTurn();
         if(e.Active!=a.Id||e.Round!=2)throw new Exception("Round wrap");
-        File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"self-test.txt"),"PASS: temporary HP, damage floor, healing cap, persistence, initiative ties, first turn, round wrap");
+        ParserTests.Run();
+        File.WriteAllText(Path.Combine(AppContext.BaseDirectory,"self-test.txt"),"PASS: temporary HP, damage floor, healing cap, persistence, initiative ties, first turn, round wrap; parser: 330 SRD blocks, multiline labels, legacy fields, missing values, multiple blocks, invalid input");
     }
 }
-
-
